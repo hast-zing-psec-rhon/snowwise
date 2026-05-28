@@ -2,7 +2,7 @@ require "http"
 
 module PirateWeather
   class Client
-    BASE_URL = ENV.fetch("PIRATE_WEATHER_API_URL", "https://api.pirateweather.net/forecast")
+    BASE_URL = ENV.fetch("PIRATE_WEATHER_API_URL", "https://prepend.me/api.pirateweather.net/forecast")
 
     def initialize(api_key: ENV.fetch("PIRATE_WEATHER_API_KEY"))
       @api_key = api_key

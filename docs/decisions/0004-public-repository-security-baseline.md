@@ -16,7 +16,7 @@ Before publishing the repository publicly, we will use the following baseline co
 - Remove local Codex workspace state from tracked files.
 - Keep CSRF protection enabled in production via `ApplicationController`.
 - Scope beginner AppDev security relaxations to development/test only.
-- Use direct first-party API endpoints for OpenAI and Pirate Weather rather than third-party proxy URLs.
+- Use the project-required `prepend.me` API proxy endpoints for OpenAI and Pirate Weather, with the URLs configurable through environment variables where supported.
 - Avoid logging upstream OpenAI response bodies on extraction failures.
 - Add baseline browser security headers and a conservative Content Security Policy.
 - Enable host authorization in production, with Render's default Snowwise host plus `ALLOWED_HOSTS` for custom domains.
@@ -31,5 +31,6 @@ Trade-offs:
 
 - Host authorization requires deployment operators to maintain `ALLOWED_HOSTS` for custom domains.
 - The CSP allows external Leaflet assets and OpenStreetMap tiles for the current map implementation; self-hosting those assets would permit a stricter policy later.
+- The `prepend.me` API proxy is an intentional project dependency; if this changes later, reassess provider trust, logging, availability, and secret-handling implications.
 - Snow report fetching still relies on external resort pages. Redirect validation is best-effort and should be revisited before allowing user-submitted source URLs.
 - The encrypted `config/credentials.yml.enc` remains tracked, which is conventional for Rails, but any existing production keys should be rotated if the corresponding master key was ever exposed.

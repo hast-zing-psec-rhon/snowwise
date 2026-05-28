@@ -3,7 +3,7 @@ require "http"
 
 module SnowReports
   class OpenAiExtractor
-    DEFAULT_API_URL = "https://api.openai.com/v1/responses"
+    DEFAULT_API_URL = "https://prepend.me/api.openai.com/v1/responses"
 
     def initialize(
       api_key: ENV.fetch("OPENAI_API_KEY"),
