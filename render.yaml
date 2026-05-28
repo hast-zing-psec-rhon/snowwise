@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: snowwise
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /up
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: snowwise-postgres
+          property: connectionString
+      - key: SECRET_KEY_BASE
+        generateValue: true
+      - key: PIRATE_WEATHER_API_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        value: gpt-4.1-mini
+      - key: OPENAI_REASONING_EFFORT
+        value: low
+      - key: ALLOWED_HOSTS
+        value: snowwise.onrender.com
+      - key: RAILS_ENV
+        value: production
+      - key: RAILS_LOG_LEVEL
+        value: info
+      # Memory optimization for Render's 512 MB free web service.
+      - key: WEB_CONCURRENCY
+        value: "0"
+      - key: RAILS_MAX_THREADS
+        value: "3"
+      - key: DB_POOL
+        value: "8"
+      - key: MALLOC_ARENA_MAX
+        value: "2"
+      - key: SOLID_QUEUE_IN_PUMA
+        value: "true"
+      - key: BUNDLE_WITHOUT
+        value: development:test
+
+databases:
+  - name: snowwise-postgres
+    databaseName: snowwise_production
+    user: snowwise
+    plan: free
+    postgresMajorVersion: "16"

@@ -1,0 +1,11 @@
+<nav class="site-nav" aria-label="Primary navigation">
+  <div class="site-nav__brand">
+    <span class="site-nav__mark">❄</span>
+    <%= link_to "Snowwise", root_path, class: "site-nav__brand-link" %>
+  </div>
+
+  <div class="site-nav__links">
+    <%= link_to "Conditions", resorts_path, class: ["site-nav__link", (current_page?(resorts_path) || current_page?(root_path) ? "site-nav__link--active" : nil)].compact.join(" ") %>
+    <%= link_to "Map", map_path, class: ["site-nav__link", (current_page?(map_path) ? "site-nav__link--active" : nil)].compact.join(" ") %>
+  </div>
+</nav>

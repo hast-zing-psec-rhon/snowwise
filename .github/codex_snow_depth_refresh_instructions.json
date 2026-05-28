@@ -1,0 +1,379 @@
+{
+    "document_name": "Codex implementation instructions: free public snow-depth refresh workflow",
+    "repository": "hast-zing-psec-rhon/ski-resort-app_v2",
+    "created_at": "2026-05-26",
+    "audience": "Codex running in GitHub Codespaces or another development environment",
+    "objective": "Implement a Rails background refresh system that collects snow base/depth data for every resort using free public web pages only, including valid 0-inch observations for closed, pre-season, off-season, summer-operations, or no-snow resorts when supported by source text.",
+    "explicit_user_direction": {
+        "paid_apis_or_licensing_allowed": false,
+        "public_page_workflow_permission": "The project owner has stated they have permission to view public pages in this workflow. Do not block implementation on a generic public-page scraping concern. Build a polite, cache-backed, low-frequency fetch workflow.",
+        "refresh_frequency": "daily or weekly; not real-time",
+        "openai_role": "Allowed as a parser/extractor over source text that the Rails app fetches and caches. The app should not rely on OpenAI browsing independently."
+    },
+    "existing_research_files_to_read_first": [
+        "data/resorts.csv",
+        "data/resort_locations.csv",
+        "data/snow_report_sources.csv",
+        "data/snow_observations.csv",
+        "data/snow_endpoint_candidates.csv",
+        "docs/research/snow_base_sources.md",
+        "docs/research/snow_json_endpoint_investigation.md"
+    ],
+    "source_priority": [
+        {
+            "rank": 1,
+            "category": "Known official structured endpoints or feeds already discovered",
+            "examples": [
+                "Palisades Tahoe / Alpine Meadows mtnpowder feeds",
+                "Aspen Snowmass WeatherDashboard feed",
+                "Hakuba Valley weather/snow HTML table",
+                "Whistler Blackcomb official PDF/print report if parsable"
+            ],
+            "notes": "Use deterministic provider-specific parsers where source structure is known."
+        },
+        {
+            "rank": 2,
+            "category": "Official resort snow, mountain, weather, current conditions, PDF, or operations pages",
+            "examples": [
+                "Official resort mountain report pages",
+                "Official snow/weather report pages",
+                "Official PDF or print-report endpoints"
+            ],
+            "notes": "Fetch page or PDF, extract machine text, then use deterministic parsing first and OpenAI structured extraction as fallback."
+        },
+        {
+            "rank": 3,
+            "category": "OpenSnow public snow-report pages",
+            "examples": [
+                "https://opensnow.com/location/{slug}/snow-report",
+                "OpenSnow country or region snow-report listing pages"
+            ],
+            "notes": "Good broad fallback for base depth and closed/0-inch states. Distinguish resort-reported values from modeled/estimated values when the page indicates that distinction."
+        },
+        {
+            "rank": 4,
+            "category": "OnTheSnow public resort snow-report pages",
+            "examples": [
+                "https://www.onthesnow.com/{country_or_region}/{resort_slug}/skireport"
+            ],
+            "notes": "Use as free public fallback when official source and OpenSnow are unavailable or unparseable. Preserve source_name and source_url."
+        },
+        {
+            "rank": 5,
+            "category": "Other free public fallback pages",
+            "examples": [
+                "Skiresort.info snow report pages",
+                "Snow-Online snow report pages",
+                "Snow-Forecast snow report pages",
+                "SnoCountry public pages if usable without a paid feed"
+            ],
+            "notes": "Use cautiously, record staleness and provenance, and prefer official/OpenSnow/OnTheSnow when available."
+        }
+    ],
+    "data_policy": {
+        "zero_inches_is_valid_when": [
+            "The source explicitly reports base depth as 0 inches or 0 cm.",
+            "The source explicitly states no snow.",
+            "The source explicitly states closed, pre-season, off-season, summer operations, or season concluded and does not publish a contradictory nonzero current snow-depth value.",
+            "The source shows closed/0 trails/0 lifts plus no current ski-season base-depth number, and surrounding source context supports closed or off-season status."
+        ],
+        "do_not_store_zero_when": [
+            "The page is merely blank, blocked, inaccessible, or JavaScript-only without visible closed/no-snow evidence.",
+            "The value is missing but the operating status is unknown.",
+            "The only available value is stale and does not describe current conditions.",
+            "The source publishes an explicit nonzero current base depth even though the resort is closed. Preserve the explicit nonzero value and mark operating status closed."
+        ],
+        "null_means": "Unknown, unavailable, unparseable, stale, blocked, or unsupported by source evidence.",
+        "unit_conversion": "Normalize stored snow-depth values to inches. Convert centimeters to inches using cm / 2.54. Decimal inches are acceptable when preserving conversion fidelity; otherwise round consistently in the UI layer.",
+        "provenance_required": [
+            "source_name",
+            "source_url",
+            "queried_at",
+            "observed_at if available",
+            "extraction_method",
+            "confidence",
+            "short evidence text or notes"
+        ]
+    },
+    "recommended_rails_models": [
+        {
+            "name": "SnowReportSource",
+            "purpose": "Configured public source URL(s) for each resort and provider.",
+            "suggested_fields": {
+                "resort_id": "foreign key",
+                "provider_name": "string, e.g. official_resort, opensnow, onthesnow, skiresort_info",
+                "source_name": "string",
+                "source_url": "string",
+                "source_type": "enum/string: official_resort, aggregator, government, other",
+                "priority": "integer",
+                "parser_strategy": "string, e.g. deterministic, openai_text_extraction, pdf_text_extraction, html_text_extraction",
+                "active": "boolean default true",
+                "notes": "text"
+            }
+        },
+        {
+            "name": "SnowSourceFetch",
+            "purpose": "Audit/cache record for each page fetch before extraction.",
+            "suggested_fields": {
+                "snow_report_source_id": "foreign key",
+                "fetched_at": "datetime",
+                "http_status": "integer",
+                "content_type": "string",
+                "response_sha256": "string",
+                "raw_text": "text or external/blob reference",
+                "error_message": "text nullable"
+            }
+        },
+        {
+            "name": "SnowObservation",
+            "purpose": "Normalized snow-depth observation shown by the app.",
+            "suggested_fields": {
+                "resort_id": "foreign key",
+                "resort_location_id": "nullable foreign key",
+                "snow_report_source_id": "foreign key",
+                "observed_at": "datetime nullable",
+                "queried_at": "datetime",
+                "base_depth_inches": "decimal nullable",
+                "mid_depth_inches": "decimal nullable",
+                "upper_depth_inches": "decimal nullable",
+                "new_snow_24h_inches": "decimal nullable",
+                "new_snow_48h_inches": "decimal nullable",
+                "new_snow_7d_inches": "decimal nullable",
+                "operating_status": "string: open, closed, preseason, offseason, summer_operations, unknown",
+                "zero_depth_reason": "nullable string: explicit_zero, closed, preseason, offseason, summer_operations, no_snow",
+                "surface_condition": "string nullable",
+                "source_url": "string",
+                "source_name": "string",
+                "extraction_method": "string: deterministic, openai, manual_seed, fallback_aggregator",
+                "confidence": "string: high, medium, low",
+                "source_evidence": "text",
+                "notes": "text"
+            }
+        },
+        {
+            "name": "SnowRefreshRun",
+            "purpose": "Batch-level refresh metadata for daily/weekly jobs.",
+            "suggested_fields": {
+                "started_at": "datetime",
+                "finished_at": "datetime nullable",
+                "status": "string: running, succeeded, failed, partial",
+                "resorts_attempted": "integer",
+                "observations_created": "integer",
+                "error_count": "integer",
+                "notes": "text"
+            }
+        }
+    ],
+    "recommended_service_objects": [
+        {
+            "class_name": "SnowReports::RefreshAllResortsJob",
+            "responsibility": "Scheduled ActiveJob that enqueues or performs refreshes for all active resorts/sources at daily or weekly cadence."
+        },
+        {
+            "class_name": "SnowReports::RefreshResortJob",
+            "responsibility": "Refresh one resort by trying active SnowReportSource records in priority order until a valid observation is produced, while recording failed attempts."
+        },
+        {
+            "class_name": "SnowReports::SourceFetcher",
+            "responsibility": "HTTP fetch public source pages with timeouts, a clear user agent, gzip support, redirects, and polite low-frequency behavior. Cache raw response text and metadata."
+        },
+        {
+            "class_name": "SnowReports::HtmlTextExtractor",
+            "responsibility": "Convert HTML to compact relevant text before parsing or OpenAI extraction. Remove nav, footer, scripts, styles, and obvious unrelated text."
+        },
+        {
+            "class_name": "SnowReports::PdfTextExtractor",
+            "responsibility": "Extract text from official PDF/print reports when needed."
+        },
+        {
+            "class_name": "SnowReports::DeterministicParsers::*",
+            "responsibility": "Provider-specific parsers for known sources such as Hakuba Valley, mtnpowder feeds, Aspen WeatherDashboard, and other stable structures."
+        },
+        {
+            "class_name": "SnowReports::OpenAiExtractor",
+            "responsibility": "Call the OpenAI API with a strict JSON schema to extract snow report fields from fetched source text. Must not browse independently."
+        },
+        {
+            "class_name": "SnowReports::ObservationValidator",
+            "responsibility": "Validate units, timestamps, source evidence, zero-depth policy, numeric ranges, and confidence before saving SnowObservation."
+        }
+    ],
+    "openai_extraction_contract": {
+        "model_selection": "Use a current cost-effective OpenAI model that supports structured outputs. Read OPENAI_API_KEY from Rails credentials or environment variables. Never commit secrets.",
+        "input": "Trimmed source text or PDF text fetched by Rails, plus resort name, source URL, source name, source type, and current refresh timestamp.",
+        "rules_for_prompt": [
+            "Return JSON only matching the schema.",
+            "Do not browse or rely on outside knowledge.",
+            "Use null for missing numeric values.",
+            "base_depth_inches may be 0 only if source text supports explicit zero, no snow, closed, pre-season, off-season, or summer operations.",
+            "If source text reports an explicit nonzero snow depth for a closed resort, preserve the nonzero snow depth and mark operating_status closed.",
+            "Include short source_evidence that justifies the extracted depth/status.",
+            "If the source is stale or only describes a past season, set confidence low or return no valid observation depending on validator policy."
+        ],
+        "json_schema": {
+            "type": "object",
+            "required": [
+                "resort_name",
+                "observed_at",
+                "base_depth_inches",
+                "mid_depth_inches",
+                "upper_depth_inches",
+                "new_snow_24h_inches",
+                "new_snow_48h_inches",
+                "new_snow_7d_inches",
+                "operating_status",
+                "zero_depth_reason",
+                "source_evidence",
+                "confidence"
+            ],
+            "properties": {
+                "resort_name": {
+                    "type": "string"
+                },
+                "observed_at": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "description": "ISO-8601 timestamp if present in source text"
+                },
+                "base_depth_inches": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "mid_depth_inches": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "upper_depth_inches": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "new_snow_24h_inches": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "new_snow_48h_inches": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "new_snow_7d_inches": {
+                    "type": [
+                        "number",
+                        "null"
+                    ]
+                },
+                "operating_status": {
+                    "type": "string",
+                    "enum": [
+                        "open",
+                        "closed",
+                        "preseason",
+                        "offseason",
+                        "summer_operations",
+                        "unknown"
+                    ]
+                },
+                "zero_depth_reason": {
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "enum": [
+                        "explicit_zero",
+                        "closed",
+                        "preseason",
+                        "offseason",
+                        "summer_operations",
+                        "no_snow",
+                        null
+                    ]
+                },
+                "source_evidence": {
+                    "type": "string"
+                },
+                "confidence": {
+                    "type": "string",
+                    "enum": [
+                        "high",
+                        "medium",
+                        "low"
+                    ]
+                }
+            }
+        }
+    },
+    "implementation_steps": [
+        "Read AGENTS.md and existing research CSV/docs before coding.",
+        "Create database migrations for SnowReportSource, SnowSourceFetch, SnowObservation, and SnowRefreshRun or align names with existing app conventions if similar models already exist.",
+        "Seed SnowReportSource from data/snow_report_sources.csv and add additional OpenSnow/OnTheSnow/Skiresort.info URLs as discovered.",
+        "Build deterministic parsers for the known structured sources first, using data/snow_endpoint_candidates.csv as the starting map.",
+        "Build SourceFetcher with timeouts, redirects, response-size limits, caching, retry backoff, and a polite user agent identifying the app.",
+        "Build HtmlTextExtractor and optional PdfTextExtractor so OpenAI receives compact relevant text, not entire noisy pages.",
+        "Build OpenAiExtractor using structured outputs and the schema in this JSON file.",
+        "Build ObservationValidator enforcing the zero-depth policy and rejecting unsupported inferred zeros.",
+        "Implement RefreshResortJob to try sources by priority and save the best valid observation while keeping fetch/audit records.",
+        "Add a daily or weekly schedule using the project's chosen Rails scheduling mechanism, e.g. Solid Queue recurring tasks if configured.",
+        "Add admin/developer rake tasks for one-off refreshes: all resorts, one resort by id/name, and one provider/source URL.",
+        "Expose latest SnowObservation in resort views only after validation; display Unknown/Unavailable for null rather than converting null to 0.",
+        "Write model, service, parser, validator, and job specs. Include fixture pages for closed/0, explicit nonzero closed, missing value, cm conversion, stale source, and blocked/unparseable source cases."
+    ],
+    "acceptance_criteria": [
+        "Every Resort can have one or more configured SnowReportSource records.",
+        "A refresh run can attempt all resorts without requiring paid APIs or licensed feeds.",
+        "OpenAI API calls happen only after Rails fetches source text; OpenAI is not asked to browse independently.",
+        "Closed/no-snow resorts may produce 0-inch base observations only with source evidence.",
+        "Missing/unavailable data remains null, not 0.",
+        "Each SnowObservation stores source URL, source name, queried_at, observed_at when available, extraction method, confidence, and evidence/notes.",
+        "Known explicit nonzero depths for closed resorts are preserved and marked closed instead of overwritten to 0.",
+        "The workflow can run daily or weekly in a background job and is safe to retry.",
+        "No API keys or secrets are committed. OPENAI_API_KEY is read from Rails credentials or environment variables."
+    ],
+    "testing_guidance": {
+        "unit_specs": [
+            "ObservationValidator zero-depth policy",
+            "cm-to-inch conversion",
+            "OpenAI extractor response validation",
+            "deterministic parsers for known fixtures",
+            "SourceFetcher error handling and caching"
+        ],
+        "job_specs": [
+            "RefreshResortJob tries sources in priority order",
+            "RefreshResortJob records failed fetches without crashing whole run",
+            "RefreshAllResortsJob records SnowRefreshRun summary"
+        ],
+        "fixture_cases": [
+            "explicit 0 inch base",
+            "closed/off-season with no numeric depth",
+            "closed but explicit 20 inch depth",
+            "cm source requiring conversion",
+            "missing snow-depth field",
+            "stale last-season report",
+            "HTML page with noisy navigation",
+            "PDF/print report text"
+        ]
+    },
+    "important_non_goals": [
+        "Do not add paid API integrations.",
+        "Do not commit OpenAI API keys or provider credentials.",
+        "Do not hard-code Ikon/Epic logic into Resort.",
+        "Do not show null snow depth as 0 in the UI.",
+        "Do not make live web requests from page-rendering controller actions; use background jobs and cached latest observations."
+    ],
+    "socratic_questions_for_implementer": [
+        "Which source should be considered authoritative when official and aggregator values disagree but both are fresh?",
+        "How stale can an observation be before the UI should label it stale or unavailable?",
+        "Should residual snowpack on a closed resort be useful to users, or should UI emphasize operating status first?",
+        "Should each base/mid/summit depth be tied to a ResortLocation row when the source provides location labels?"
+    ]
+}

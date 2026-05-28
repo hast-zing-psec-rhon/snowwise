@@ -1,0 +1,73 @@
+<section class="map-panel map-filters" aria-labelledby="map-filter-heading">
+  <div class="map-panel__header">
+    <p class="eyebrow">Explore</p>
+    <h2 id="map-filter-heading">Filter resorts</h2>
+  </div>
+
+  <label class="filter-field">
+    <span>Pass type</span>
+    <select data-resort-map-target="passFilter" data-action="change->resort-map#applyFilters">
+      <option value="all">All passes</option>
+      <option value="Ikon">Ikon</option>
+      <option value="Epic">Epic</option>
+      <option value="No Pass">No Pass</option>
+    </select>
+  </label>
+
+  <label class="filter-field">
+    <span>Region</span>
+    <select data-resort-map-target="regionFilter" data-action="change->resort-map#applyFilters">
+      <option value="all">All regions</option>
+      <% regions.each do |region| %>
+        <option value="<%= region %>"><%= region %></option>
+      <% end %>
+    </select>
+  </label>
+
+  <label class="filter-field">
+    <span>Minimum base depth</span>
+    <select data-resort-map-target="depthFilter" data-action="change->resort-map#applyFilters">
+      <option value="0">Any depth</option>
+      <option value="12">12+ in</option>
+      <option value="24">24+ in</option>
+      <option value="48">48+ in</option>
+      <option value="72">72+ in</option>
+    </select>
+  </label>
+
+  <label class="filter-field">
+    <span>Minimum 7-day snow</span>
+    <select data-resort-map-target="snowFilter" data-action="change->resort-map#applyFilters">
+      <option value="0">Any forecast</option>
+      <option value="3">3+ in</option>
+      <option value="6">6+ in</option>
+      <option value="12">12+ in</option>
+      <option value="18">18+ in</option>
+    </select>
+  </label>
+
+  <label class="filter-field">
+    <span>Max current temp</span>
+    <select data-resort-map-target="temperatureFilter" data-action="change->resort-map#applyFilters">
+      <option value="100">Any temperature</option>
+      <option value="28">28°F or colder</option>
+      <option value="32">32°F or colder</option>
+      <option value="36">36°F or colder</option>
+      <option value="42">42°F or colder</option>
+    </select>
+  </label>
+
+  <label class="filter-toggle">
+    <input type="checkbox" data-resort-map-target="openFilter" data-action="change->resort-map#applyFilters">
+    <span>Open resorts only</span>
+  </label>
+
+  <fieldset class="label-mode">
+    <legend>Marker labels</legend>
+    <label><input type="radio" name="marker-label-mode" value="conditions_score" checked data-action="change->resort-map#changeLabelMode"> Score</label>
+    <label><input type="radio" name="marker-label-mode" value="current_temperature" data-action="change->resort-map#changeLabelMode"> Temp</label>
+    <label><input type="radio" name="marker-label-mode" value="seven_day_snowfall_total" data-action="change->resort-map#changeLabelMode"> 7-day snow</label>
+  </fieldset>
+
+  <button type="button" class="secondary-button" data-action="click->resort-map#clearFilters">Clear filters</button>
+</section>

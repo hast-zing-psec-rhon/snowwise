@@ -1,0 +1,124 @@
+<%
+  card_data_by_resort_id = local_assigns.fetch(:resort_card_data, {}) || {}
+  card_data = card_data_by_resort_id[resort.id]
+
+  unless card_data
+    fallback_current_forecast = current_forecast_for(resort)
+    fallback_daily_forecasts = daily_forecasts_for(resort)
+    fallback_score_result = condition_score_result_for(resort, fallback_current_forecast)
+    card_data = {
+      current_forecast: fallback_current_forecast,
+      daily_forecasts: fallback_daily_forecasts,
+      score_result: fallback_score_result,
+      accesses: resort_pass_accesses(resort),
+      cache_key: ["resort-card-v4-fallback", resort, resort.latest_snow_observation, fallback_current_forecast, fallback_daily_forecasts, fallback_score_result.score]
+    }
+  end
+
+  current_forecast = card_data.fetch(:current_forecast)
+  daily_forecasts = card_data.fetch(:daily_forecasts)
+  score_result = card_data.fetch(:score_result)
+  score = score_result.score
+  score_state_class = condition_score_ring_class(score)
+  accesses = card_data.fetch(:accesses)
+%>
+
+<% cache(card_data.fetch(:cache_key)) do %>
+<article class="resort-card">
+  <div class="resort-card-main">
+    <div class="<%= resort_image_class(resort) %>">
+      <% if resort.image_url.present? %>
+        <%= image_tag(
+          resort.image_url,
+          alt: resort_image_alt(resort),
+          width: 128,
+          height: 128,
+          loading: "lazy",
+          decoding: "async",
+          sizes: "128px",
+          referrerpolicy: "no-referrer",
+          onerror: "this.closest('.resort-photo').classList.add('resort-photo-image-failed'); this.remove();"
+        ) %>
+      <% end %>
+
+      <span aria-hidden="true"></span>
+    </div>
+
+    <section class="resort-identity" aria-label="Resort details">
+      <h3><%= resort.name %></h3>
+      <p class="resort-meta">⌖ <%= resort_location_text(resort) %></p>
+      <p class="resort-meta">△ <%= resort.primary_location&.name || "Primary area pending" %></p>
+    </section>
+
+    <section class="current-weather-block" aria-label="Current weather">
+      <%= render "shared/weather_icon", icon: weather_icon_name(current_forecast), size: "large" %>
+      <div>
+        <div class="current-temp"><%= formatted_temperature(current_forecast&.temperature) %></div>
+        <div class="weather-summary"><%= weather_summary(current_forecast) %></div>
+      </div>
+    </section>
+
+    <section class="quick-stats" aria-label="Quick stats">
+      <div>
+        <span>Wind</span>
+        <strong><%= formatted_wind_speed(current_forecast) %></strong>
+      </div>
+      <div>
+        <span>Precip</span>
+        <strong><%= formatted_precip_probability(current_forecast) %></strong>
+      </div>
+      <div>
+        <span>Snow Depth</span>
+        <strong><%= snow_depth_label(resort) %></strong>
+      </div>
+    </section>
+
+    <section class="score-block" aria-label="Conditions score">
+      <span>Conditions Score</span>
+      <div class="score-ring <%= score_state_class %>" style="<%= condition_score_ring_style(score) %>"><%= score || "--" %></div>
+      <strong><%= score_result.label %></strong>
+    </section>
+
+    <section class="forecast-strip" aria-label="7-day forecast">
+      <h4>7-Day Forecast</h4>
+      <div class="forecast-days">
+        <% daily_forecasts.each do |forecast| %>
+          <div class="forecast-day">
+            <span><%= forecast.forecast_for.strftime("%a") %></span>
+            <%= render "shared/weather_icon", icon: weather_icon_name(forecast), size: "small" %>
+            <em><%= formatted_temperature(forecast.temperature_high) %></em>
+            <small><%= formatted_temperature(forecast.temperature_low) %></small>
+            <small><%= daily_snow_label(forecast) %></small>
+          </div>
+        <% end %>
+      </div>
+    </section>
+
+    <aside class="pass-card-block" aria-label="Pass access">
+      <% if accesses.any? %>
+        <% accesses.each do |access| %>
+          <div class="pass-card-entry">
+            <span class="<%= pass_badge_class(access.pass_product.name) %>">
+              <%= access.pass_product.name %>
+            </span>
+            <strong>
+              <% if access.unlimited_access? %>
+                Unlimited
+              <% elsif access.access_days.present? %>
+                <%= pluralize(access.access_days, "day") %>
+              <% else %>
+                Details pending
+              <% end %>
+            </strong>
+          </div>
+        <% end %>
+      <% else %>
+        <span class="pass-chip pass-chip-muted">No Pass</span>
+        <strong class="no-pass-note">Access not recorded</strong>
+      <% end %>
+
+      <button class="favorite-button" type="button" aria-label="Add <%= resort.name %> to favorites">☆</button>
+    </aside>
+  </div>
+</article>
+<% end %>

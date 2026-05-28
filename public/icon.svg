@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Snowwise">
+  <rect width="512" height="512" rx="112" fill="#EAF3FF"/>
+  <circle cx="256" cy="256" r="140" fill="#2F80ED"/>
+  <g fill="none" stroke="#FFFFFF" stroke-width="38" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M256 130v252"/>
+    <path d="M147 193l218 126"/>
+    <path d="M365 193L147 319"/>
+    <path d="M218 152l38 38 38-38"/>
+    <path d="M218 360l38-38 38 38"/>
+    <path d="M165 239l52-14-14-52"/>
+    <path d="M309 339l-14-52 52-14"/>
+    <path d="M203 339l14-52-52-14"/>
+    <path d="M347 239l-52-14 14-52"/>
+  </g>
+</svg>

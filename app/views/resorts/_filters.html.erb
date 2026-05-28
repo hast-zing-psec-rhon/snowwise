@@ -1,0 +1,76 @@
+<%= form_with(url: resorts_path, method: :get, class: "filters-panel", local: true, aria: { label: "Resort filters" }) do %>
+  <div class="search-control">
+    <span class="filter-icon" aria-hidden="true">⌕</span>
+    <%= search_field_tag(
+      :q,
+      local_assigns.fetch(:search_query, nil),
+      placeholder: "Search resorts...",
+      aria: { label: "Search resorts" }
+    ) %>
+  </div>
+
+  <label class="select-control">
+    <span>Pass Type</span>
+    <%= select_tag(
+      :pass_product,
+      options_for_select(
+        [["All Passes", ""]] + pass_products.map { |pass_product| [pass_product.name, pass_product.name] },
+        selected_pass_product&.name
+      ),
+      aria: { label: "Pass type" },
+      onchange: "this.form.requestSubmit()"
+    ) %>
+  </label>
+
+  <label class="select-control">
+    <span>Region</span>
+    <%= select_tag(
+      :region,
+      options_for_select(
+        [["All Regions", ""]] + regions.map { |region| [region, region] },
+        local_assigns.fetch(:selected_region, nil)
+      ),
+      aria: { label: "Region" },
+      onchange: "this.form.requestSubmit()"
+    ) %>
+  </label>
+
+  <label class="select-control">
+    <span>Snow Depth</span>
+    <%= select_tag(
+      :snow_depth,
+      options_for_select(
+        [["Any", ""]] + local_assigns.fetch(:snow_depth_options, {}).map { |value, label| [label, value] },
+        local_assigns.fetch(:selected_snow_depth, nil)
+      ),
+      aria: { label: "Snow depth" },
+      onchange: "this.form.requestSubmit()"
+    ) %>
+  </label>
+
+  <label class="select-control">
+    <span>Temperature</span>
+    <%= select_tag(
+      :temperature,
+      options_for_select(
+        [["Any", ""]] + local_assigns.fetch(:temperature_options, {}).map { |value, label| [label, value] },
+        local_assigns.fetch(:selected_temperature, nil)
+      ),
+      aria: { label: "Temperature" },
+      onchange: "this.form.requestSubmit()"
+    ) %>
+  </label>
+
+  <label class="select-control">
+    <span>Sort By</span>
+    <%= select_tag(
+      :sort,
+      options_for_select(sort_options.map { |value, label| [label, value] }, selected_sort),
+      aria: { label: "Sort resorts" },
+      onchange: "this.form.requestSubmit()"
+    ) %>
+  </label>
+
+  <%= submit_tag("Apply", class: "filter-submit-button") %>
+  <%= link_to("Clear Filters", resorts_path, class: "clear-filters-link") %>
+<% end %>

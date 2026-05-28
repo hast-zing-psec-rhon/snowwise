@@ -1,0 +1,103 @@
+<% content_for(:title, "Snowwise") %>
+
+<div class="ski-page-shell">
+  <nav class="site-nav" aria-label="Primary navigation">
+    <%= link_to(root_path, class: "brand-mark") do %>
+      <span class="brand-icon">❄</span>
+      <span>Snowwise</span>
+    <% end %>
+
+    <div class="nav-links">
+      <%= link_to("Conditions", root_path, class: "active") %>
+      <%= link_to("Map", map_path) %>
+    </div>
+  </nav>
+
+  <header class="hero-panel">
+    <div>
+      <h1>Snowwise</h1>
+      <p>Monitor snow conditions this ski season and plan your next ski trip</p>
+    </div>
+
+    <%= link_to("View Map", map_path, class: "map-button") %>
+  </header>
+
+  <main class="conditions-content">
+    <%= render(
+      "filters",
+      pass_products: @pass_products,
+      selected_pass_product: @selected_pass_product,
+      regions: @regions,
+      snow_depth_options: @snow_depth_options,
+      temperature_options: @temperature_options,
+      search_query: @search_query,
+      selected_region: @selected_region,
+      selected_snow_depth: @selected_snow_depth,
+      selected_temperature: @selected_temperature,
+      sort_options: @sort_options,
+      selected_sort: @selected_sort
+    ) %>
+
+    <div class="results-summary">
+      <span>
+        Showing <%= @resorts.size %> of <%= pluralize(@total_resort_count, "resort") %>
+      </span>
+
+      <% if @total_pages > 1 %>
+        <nav class="pagination-nav" aria-label="Resort pages">
+          <% if @current_page > 1 %>
+            <%= link_to("Previous", resorts_path(request.query_parameters.merge(page: @current_page - 1))) %>
+          <% end %>
+
+          <span>Page <%= @current_page %> of <%= @total_pages %></span>
+
+          <% if @current_page < @total_pages %>
+            <%= link_to("Next", resorts_path(request.query_parameters.merge(page: @current_page + 1))) %>
+          <% end %>
+        </nav>
+      <% end %>
+    </div>
+
+    <section class="resort-results" aria-label="Resort conditions">
+      <% if @resorts.empty? %>
+        <div class="empty-results-panel">
+          <h2>No resorts match these filters</h2>
+          <p>Try clearing one filter or searching for a broader location.</p>
+        </div>
+      <% end %>
+
+      <% @resorts_by_region.each do |region_name, resorts| %>
+        <% next if resorts.empty? %>
+
+        <section class="region-card-group" aria-labelledby="region-<%= region_name.parameterize %>">
+          <div class="region-card-heading">
+            <h2 id="region-<%= region_name.parameterize %>"><%= region_name %></h2>
+            <span><%= pluralize(resorts.size, "resort") %></span>
+          </div>
+
+          <div class="resort-card-list">
+            <%= render partial: "resort_card", collection: resorts, as: :resort, locals: { resort_card_data: @resort_card_data } %>
+          </div>
+        </section>
+      <% end %>
+    </section>
+
+    <% if @total_pages > 1 %>
+      <nav class="pagination-nav pagination-nav-bottom" aria-label="Resort pages">
+        <% if @current_page > 1 %>
+          <%= link_to("Previous", resorts_path(request.query_parameters.merge(page: @current_page - 1))) %>
+        <% end %>
+
+        <span>Page <%= @current_page %> of <%= @total_pages %></span>
+
+        <% if @current_page < @total_pages %>
+          <%= link_to("Next", resorts_path(request.query_parameters.merge(page: @current_page + 1))) %>
+        <% end %>
+      </nav>
+    <% end %>
+
+    <p class="conditions-disclaimer">
+      ⓘ Conditions, forecasts and snow reports are provided by mountain operators and third-party sources.
+    </p>
+  </main>
+</div>

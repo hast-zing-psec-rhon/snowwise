@@ -1,0 +1,29 @@
+<section class="map-panel map-insights" aria-live="polite" aria-labelledby="map-insights-heading">
+  <div class="map-panel__header">
+    <p class="eyebrow">Live view</p>
+    <h2 id="map-insights-heading">Best in view</h2>
+  </div>
+
+  <div class="insight-grid" data-resort-map-target="insights">
+    <article class="insight-card">
+      <span class="insight-card__label">Matching resorts</span>
+      <strong data-insight="count"><%= summary[:resort_count] %></strong>
+    </article>
+    <article class="insight-card">
+      <span class="insight-card__label">Best conditions</span>
+      <strong data-insight="best"><%= summary.dig(:best_conditions, :name) || "—" %></strong>
+    </article>
+    <article class="insight-card">
+      <span class="insight-card__label">Most forecast snow</span>
+      <strong data-insight="snow"><%= summary.dig(:most_forecast_snow, :name) || "—" %></strong>
+    </article>
+    <article class="insight-card">
+      <span class="insight-card__label">Best Ikon</span>
+      <strong data-insight="ikon"><%= summary.dig(:best_ikon, :name) || "—" %></strong>
+    </article>
+    <article class="insight-card">
+      <span class="insight-card__label">Best Epic</span>
+      <strong data-insight="epic"><%= summary.dig(:best_epic, :name) || "—" %></strong>
+    </article>
+  </div>
+</section>
